@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wigle Data Heatmap Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: #2d2d2d;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+        }
+        
+        .section h3 {
+            color: #81C784;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .file-input {
+            background: #404040;
+            border: 2px dashed #666;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-input:hover {
+            border-color: #4CAF50;
+            background: #454545;
+        }
+        
+        .file-input input {
+            display: none;
+        }
+        
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        
+        .filter-group label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+        
+        .filter-group input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .stats {
+            background: #353535;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .color-legend {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .color-box {
+            width: 20px;
+            height: 15px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: none;
+            text-align: center;
+            min-width: 250px;
+        }
+        
+        .loading button {
+            margin-top: 15px;
+            background: #f44336;
+            padding: 8px 16px;
+        }
+        
+        .loading button:hover {
+            background: #d32f2f;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .view-tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: #404040;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s;
+        }
+        
+        .tab.active {
+            background: #4CAF50;
+        }
+        
+        .tab:hover:not(.active) {
+            background: #555;
+        }
+        
+        .view-panel {
+            display: none;
+        }
+        
+        .view-panel.active {
+            display: block;
+        }
+        
+        .slider-container {
+            margin: 10px 0;
+        }
+        
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        
+        .slider {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .network-details {
+            background: #353535;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .network-details:hover {
+            background: #404040;
+        }
+        
+        .network-title {
+            font-weight: bold;
+            color: #81C784;
+            margin-bottom: 5px;
+        }
+        
+        .network-info {
+            font-size: 0.85em;
+            color: #ccc;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #404040;
+            border: 1px solid #666;
+            border-radius: 5px;
+            color: white;
+        }
+        
+        .search-box::placeholder {
+            color: #999;
+        }
+        
+        .time-range {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 0.85em;
+        }
+        
+        .analysis-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #444;
+        }
+        
+        .analysis-item:last-child {
+            border-bottom: none;
+        }
+        
+        .popup-content {
+            max-width: 300px;
+        }
+        
+        .popup-content h4 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+        }
+        
+        .popup-field {
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        
+        .popup-field strong {
+            color: #81C784;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Wigle Explorer</h1>
+            
+            <div class="section">
+                <h3>Import Database</h3>
+                <div class="file-input" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" accept=".sqlite,.db" />
+                    <div>Click to select SQLite database file</div>
+                </div>
+            </div>
+            
+            <div class="view-tabs">
+                <button class="tab active" data-view="heatmap">Heatmap</button>
+                <button class="tab" data-view="markers">Markers</button>
+                <button class="tab" data-view="analysis">Analysis</button>
+                <button class="tab" data-view="timeline">Timeline</button>
+            </div>
+
+            <!-- Heatmap View -->
+            <div class="view-panel active" id="heatmap-panel">
+                <div class="section">
+                    <h3>Network Types</h3>
+                    <div class="filter-group">
+                        <label><input type="checkbox" id="filterW" checked> <span class="color-box" style="background: #FF6B6B;"></span> Wi-Fi (W)</label>
+                        <label><input type="checkbox" id="filterB" checked> <span class="color-box" style="background: #4ECDC4;"></span> Bluetooth Classic (B)</label>
+                        <label><input type="checkbox" id="filterE" checked> <span class="color-box" style="background: #45B7D1;"></span> Bluetooth LE (E)</label>
+                        <label><input type="checkbox" id="filterG" checked> <span class="color-box" style="background: #96CEB4;"></span> GSM/UMTS (G)</label>
+                        <label><input type="checkbox" id="filterL" checked> <span class="color-box" style="background: #FECA57;"></span> LTE/NR (L)</label>
+                        <label><input type="checkbox" id="filterC" checked> <span class="color-box" style="background: #FF9FF3;"></span> CDMA (C)</label>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label>Heatmap Intensity</label>
+                        <input type="range" id="intensitySlider" class="slider" min="0.1" max="2" step="0.1" value="1">
+                        <div class="time-range">
+                            <span>Low</span>
+                            <span id="intensityValue">1.0</span>
+                            <span>High</span>
+                        </div>
+                    </div>
+
+                    <div class="slider-container">
+                        <label>Heatmap Radius</label>
+                        <input type="range" id="radiusSlider" class="slider" min="5" max="50" step="5" value="15">
+                        <div class="time-range">
+                            <span>5px</span>
+                            <span id="radiusValue">15px</span>
+                            <span>50px</span>
+                        </div>
+                    </div>
+                    
+                    <button id="updateMap" disabled>Update View</button>
+                </div>
+            </div>
+
+            <!-- Markers View -->
+            <div class="view-panel" id="markers-panel">
+                <div class="section">
+                    <h3>Individual Networks</h3>
+                    <input type="text" id="networkSearch" class="search-box" placeholder="Search networks (SSID, BSSID)...">
+                    
+                    <div class="filter-group">
+                        <label><input type="checkbox" id="markersW" checked> Wi-Fi</label>
+                        <label><input type="checkbox" id="markersB" checked> Bluetooth Classic</label>
+                        <label><input type="checkbox" id="markersE" checked> Bluetooth LE</label>
+                        <label><input type="checkbox" id="markersG" checked> GSM/UMTS</label>
+                        <label><input type="checkbox" id="markersL" checked> LTE/NR</label>
+                        <label><input type="checkbox" id="markersC" checked> CDMA</label>
+                    </div>
+
+                    <div class="slider-container">
+                        <label>Signal Strength Filter</label>
+                        <input type="range" id="signalFilter" class="slider" min="-100" max="-20" step="5" value="-100">
+                        <div class="time-range">
+                            <span>-100 dBm</span>
+                            <span id="signalValue">-100 dBm</span>
+                            <span>-20 dBm</span>
+                        </div>
+                    </div>
+                    
+                    <button id="showMarkers" disabled>Show Network Markers</button>
+                </div>
+            </div>
+
+            <!-- Analysis View -->
+            <div class="view-panel" id="analysis-panel">
+                <div class="section">
+                    <h3>Network Analysis</h3>
+                    <div class="stats" id="detailedStats">
+                        <div>Load data to see analysis</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Top Networks</h3>
+                    <div id="topNetworks">
+                        <div>No data loaded</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline View -->
+            <div class="view-panel" id="timeline-panel">
+                <div class="section">
+                    <h3>Temporal Analysis</h3>
+                    <div id="timelineInfo">
+                        <div>Load data to see timeline</div>
+                    </div>
+                    
+                    <div class="slider-container" id="timeSliderContainer" style="display: none;">
+                        <label>Time Range</label>
+                        <input type="range" id="timeSlider" class="slider" min="0" max="100" step="1" value="100">
+                        <div class="time-range">
+                            <span id="timeStart">Start</span>
+                            <span id="timeCurrent">Current</span>
+                            <span id="timeEnd">End</span>
+                        </div>
+                    </div>
+                    
+                    <button id="animateTime" disabled>Animate Over Time</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Statistics</h3>
+                <div class="stats" id="stats">
+                    <div>No data loaded</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="loading" id="loading">
+                <div id="loadingText">Processing data...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <button id="cancelLoading" onclick="app.cancelLoading()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://unpkg.com/sql.js@1.8.0/dist/sql-wasm.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
