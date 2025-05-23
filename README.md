@@ -17,6 +17,23 @@ A simple, high-performance web app for visualizing Wigle database files with int
 2. Select your Wigle SQLite database file
 3. Explore with the 4 view tabs: Heatmap, Markers, Analysis, Timeline
 
+## Testing
+
+Run automated tests to verify functionality with your database:
+
+```bash
+./wigle-test /path/to/your/database.sqlite
+```
+
+This will:
+- Test stack overflow fixes for large databases
+- Verify all views load correctly
+- Check filtering functionality
+- Measure performance
+- Report any errors in real-time
+
+The test mode is built into the main application and tests the actual production code.
+
 ## Network Types
 
 - **W** - Wi-Fi (Red)
