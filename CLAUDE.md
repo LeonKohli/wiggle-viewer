@@ -208,7 +208,43 @@ document.getElementById('updateMap')?.addEventListener('click', () => this.updat
 - **Error Handling**: Graceful fallbacks and user feedback
 
 ### Testing Approach
-Manual testing workflow:
+
+#### Built-in Test Mode
+The application includes a comprehensive automated test mode for verifying functionality and performance:
+
+**Running Tests:**
+```bash
+./wigle-test /path/to/database.sqlite
+```
+
+This launches the integrated test mode which:
+1. Starts a local web server
+2. Opens the app with test mode enabled
+3. Prompts you to select the database file
+4. Automatically runs comprehensive tests after loading
+5. Reports results in real-time
+
+**Test Coverage:**
+- Stack overflow mitigation verification (calculateTimeRange, estimateCoverageArea)
+- Performance testing with large datasets (100k+ records)
+- All view modes (heatmap, markers, analysis, timeline)
+- Filtering functionality
+- Error detection and reporting
+- Automated performance benchmarking
+- Memory usage monitoring
+
+**URL Parameters for Testing:**
+- `?test=true` - Enables test mode interface
+- `?test=true&automated=true` - Runs automated test suite
+- `?test=true&dbpath=/path/to/db.sqlite` - Suggests database for testing
+
+The test mode monitors console output for errors, specifically checking for RangeError and stack overflow issues that can occur with large databases. Test results are displayed in a floating panel and logged to the console.
+
+**Test Integration:**
+Testing is built directly into the main application code (`app.js`) as a first-class feature, not a separate system. This ensures tests stay synchronized with the codebase and can be run by any user to verify their setup.
+
+#### Manual Testing
+Additional manual testing workflow:
 - Load various database sizes (1k to 100k+ networks)
 - Test performance with different filter combinations
 - Verify analysis accuracy with known datasets
