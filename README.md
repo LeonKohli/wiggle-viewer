@@ -1,38 +1,48 @@
-# Wigle Data Heatmap Viewer
+# Wigle Explorer
 
-An interactive web application for visualizing Wigle database data on a heatmap.
+A simple, high-performance web app for visualizing Wigle database files with interactive maps and analytics.
 
 ## Features
 
-- Import SQLite Wigle database files
-- Interactive heatmap visualization using Leaflet
-- Filter by network types (Wi-Fi, Bluetooth, Cellular)
-- Real-time statistics display
-- Dark theme optimized for data visualization
+- **Interactive heatmaps** with density visualization
+- **Canvas-rendered markers** for 100k+ networks
+- **Real-time filtering** by type, signal, search
+- **Timeline animation** showing data over time
+- **Detailed analytics** with frequency/security analysis
+- **One-click network focusing** from analysis results
 
-## Network Types Supported
+## Quick Start
+
+1. Open `index.html` in your browser
+2. Select your Wigle SQLite database file
+3. Explore with the 4 view tabs: Heatmap, Markers, Analysis, Timeline
+
+## Network Types
 
 - **W** - Wi-Fi (Red)
-- **B** - Bluetooth Classic (Teal)
-- **E** - Bluetooth Low Energy (Blue)
-- **G** - GSM/UMTS 2G & 3G (Green)
-- **L** - LTE/NR 4G & 5G (Yellow)
+- **B** - Bluetooth Classic (Teal) 
+- **E** - Bluetooth LE (Blue)
+- **G** - GSM/UMTS (Green)
+- **L** - LTE/NR (Yellow)
 - **C** - CDMA (Pink)
 
-## Usage
+## Performance
 
-1. Open `index.html` in a web browser
-2. Click "Click to select SQLite database file" and choose your Wigle database
-3. Wait for the data to load
-4. Use the checkboxes to filter network types
-5. Click "Update Heatmap" to refresh the visualization
+- Handles 100k+ networks smoothly with canvas rendering
+- Smart sampling for huge datasets  
+- Chunked processing prevents UI blocking
+- Progress tracking with cancellation support
 
-## Technical Details
+## Code Structure
 
-- Uses Leaflet.js for mapping
-- SQL.js for SQLite database reading in browser
-- Leaflet.heat for heatmap generation
-- Signal strength data influences heatmap intensity
-- Combines network discovery points with observation data
+Simple single-file architecture (`app.js`) with clean organization:
+- Configuration constants at top
+- Logical method grouping with comments
+- Modern ES6+ but readable and maintainable
+- High performance without over-engineering
 
-The heatmap intensity is calculated based on signal strength measurements, with stronger signals appearing more intensely on the map.
+Perfect for a side project - easy to understand and extend!
+
+## Browser Support
+
+Modern browsers with ES6+ support (Chrome 60+, Firefox 55+, Safari 12+)
