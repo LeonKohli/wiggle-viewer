@@ -20,6 +20,33 @@ const CONFIG = {
         MAX_CANVAS_MARKERS: 200000,
         MAX_LOCATION_SAMPLES: 30000,
         CHUNK_SIZE: 2000
+    },
+    MAP_LAYERS: {
+        'dark': {
+            name: 'Dark Theme',
+            url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            attribution: '© OpenStreetMap contributors © CARTO'
+        },
+        'light': {
+            name: 'Light Theme',
+            url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            attribution: '© OpenStreetMap contributors © CARTO'
+        },
+        'satellite': {
+            name: 'Satellite',
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            attribution: '© Esri'
+        },
+        'terrain': {
+            name: 'Terrain',
+            url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+            attribution: '© OpenTopoMap contributors'
+        },
+        'osm': {
+            name: 'OpenStreetMap',
+            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            attribution: '© OpenStreetMap contributors'
+        }
     }
 };
 
@@ -42,7 +69,10 @@ class WigleExplorer {
         // Map layers
         this.layers = {
             heatmap: null,
-            geoJsonLayer: null
+            geoJsonLayer: null,
+            baseLayers: {},
+            overlayLayers: {},
+            layerControl: null
         };
 
         this.init();
@@ -77,11 +107,28 @@ class WigleExplorer {
             renderer: L.canvas({ padding: 0.5 })
         }).setView([40.7128, -74.0060], 10);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap contributors © CARTO',
-            subdomains: 'abcd',
-            maxZoom: 20
-        }).addTo(this.map);
+        // Create base layers
+        Object.keys(CONFIG.MAP_LAYERS).forEach(key => {
+            const layerConfig = CONFIG.MAP_LAYERS[key];
+            this.layers.baseLayers[layerConfig.name] = L.tileLayer(layerConfig.url, {
+                attribution: layerConfig.attribution,
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+        });
+
+        // Add default layer (dark theme)
+        this.layers.baseLayers['Dark Theme'].addTo(this.map);
+
+        // Initialize overlays (will be populated when data is loaded)
+        this.layers.overlayLayers = {};
+
+        // Create layer control
+        this.layers.layerControl = L.control.layers(
+            this.layers.baseLayers, 
+            this.layers.overlayLayers,
+            { position: 'topright', collapsed: true }
+        ).addTo(this.map);
     }
 
     initEventListeners() {
@@ -99,6 +146,7 @@ class WigleExplorer {
 
         // Controls with simple event handling
         this.setupControls();
+        this.setupSidebarResize();
     }
 
     setupControls() {
@@ -332,7 +380,11 @@ class WigleExplorer {
             this.layers.heatmap = L.heatLayer(allPoints, {
                 radius, blur: Math.max(10, radius - 5), maxZoom: 18,
                 gradient: { 0.0: 'blue', 0.2: 'cyan', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red' }
-            }).addTo(this.map);
+            });
+            
+            // Add to layer control as overlay
+            this.layers.layerControl.addOverlay(this.layers.heatmap, 'Network Heatmap');
+            this.layers.heatmap.addTo(this.map);
         }
     }
 
@@ -358,10 +410,16 @@ class WigleExplorer {
         this.layers.geoJsonLayer = L.geoJSON(geoJsonData, {
             pointToLayer: (feature, latlng) => {
                 const { type, level } = feature.properties;
+                const radius = this.getMarkerRadius(level);
                 return L.circleMarker(latlng, {
-                    radius: this.getMarkerRadius(level),
+                    radius: radius,
                     fillColor: CONFIG.NETWORK_TYPES[type]?.color || '#808080',
-                    color: '#ffffff', weight: 1, opacity: 0.8, fillOpacity: 0.7
+                    color: '#ffffff', 
+                    weight: window.innerWidth < 768 ? 2 : 1, // Thicker borders on mobile
+                    opacity: 0.9, 
+                    fillOpacity: 0.8,
+                    // Make click targets larger
+                    className: 'network-marker'
                 });
             },
             onEachFeature: (feature, layer) => {
@@ -371,7 +429,11 @@ class WigleExplorer {
                     layer.bindPopup(this.createNetworkPopup(props)).openPopup();
                 });
             }
-        }).addTo(this.map);
+        });
+        
+        // Add to layer control as overlay
+        this.layers.layerControl.addOverlay(this.layers.geoJsonLayer, 'Network Markers');
+        this.layers.geoJsonLayer.addTo(this.map);
 
         if (filteredNetworks.length > maxNetworks) {
             console.log(`Showing ${networksToShow.length} of ${filteredNetworks.length} networks`);
@@ -432,10 +494,12 @@ class WigleExplorer {
     }
 
     getMarkerRadius(signalLevel) {
-        if (signalLevel > -40) return 6;
-        if (signalLevel > -60) return 5;
-        if (signalLevel > -80) return 4;
-        return 3;
+        // Larger, more touch-friendly markers
+        const baseSize = window.innerWidth < 768 ? 3 : 2; // Bigger on mobile
+        if (signalLevel > -40) return 8 + baseSize;
+        if (signalLevel > -60) return 7 + baseSize;
+        if (signalLevel > -80) return 6 + baseSize;
+        return 5 + baseSize;
     }
 
     createNetworkPopup(network) {
@@ -457,15 +521,21 @@ class WigleExplorer {
     }
 
     clearLayers() {
+        // Remove heatmap from both map and layer control
         if (this.layers.heatmap) {
             this.map.removeLayer(this.layers.heatmap);
+            this.layers.layerControl.removeLayer(this.layers.heatmap);
             this.layers.heatmap = null;
         }
+        
+        // Remove markers from both map and layer control
         if (this.layers.geoJsonLayer) {
             this.map.removeLayer(this.layers.geoJsonLayer);
+            this.layers.layerControl.removeLayer(this.layers.geoJsonLayer);
             this.layers.geoJsonLayer = null;
         }
     }
+
 
     // =================
     // ANALYTICS & UI
@@ -1238,6 +1308,49 @@ class WigleExplorer {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    setupSidebarResize() {
+        const sidebar = document.getElementById('sidebar');
+        const resizeHandle = document.getElementById('resizeHandle');
+        
+        if (!sidebar || !resizeHandle || window.innerWidth < 768) return;
+
+        let isResizing = false;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'ew-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        const handleMouseMove = (e) => {
+            if (!isResizing) return;
+            
+            const newWidth = e.clientX;
+            const minWidth = 250;
+            const maxWidth = 500;
+            
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                sidebar.style.width = newWidth + 'px';
+                // Trigger map resize after sidebar resize
+                setTimeout(() => {
+                    if (this.map) this.map.invalidateSize();
+                }, 10);
+            }
+        };
+
+        const handleMouseUp = () => {
+            isResizing = false;
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }
+
 
     parseSecurityInfo(capabilities) {
         if (!capabilities) return 'Unknown';
